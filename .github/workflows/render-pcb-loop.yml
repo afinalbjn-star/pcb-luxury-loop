@@ -1,0 +1,209 @@
+name: Render PCB Luxury Loop 4K60
+
+on:
+  workflow_dispatch:
+    inputs:
+      engine:
+        description: "Render engine"
+        required: false
+        default: "cycles"
+        type: choice
+        options:
+          - "cycles"
+          - "eevee"
+      samples:
+        description: "Samples per frame (cycles)"
+        required: false
+        default: "256"
+        type: choice
+        options:
+          - "64"
+          - "128"
+          - "256"
+          - "512"
+      start_frame:
+        description: "First frame"
+        required: false
+        default: "1"
+      end_frame:
+        description: "Last frame (720 = full 12 s loop)"
+        required: false
+        default: "720"
+      encode:
+        description: "Encode MP4/MOV after rendering"
+        required: false
+        default: true
+        type: boolean
+
+  workflow_call:
+    inputs:
+      engine:
+        type: string
+        default: "cycles"
+      samples:
+        type: string
+        default: "256"
+      start_frame:
+        type: string
+        default: "1"
+      end_frame:
+        type: string
+        default: "720"
+      encode:
+        type: boolean
+        default: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+  BLEND: blender-stock/pcb_luxury_loop.blend
+  FRAMES_DIR: blender-stock/render
+  OUT_DIR: blender-stock/output
+
+jobs:
+  render:
+    name: Render 4K60 loop
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/dotnet
+          df -h /
+
+      - name: Install Blender
+        uses: bradyajohnston/setup-blender@v5
+        with:
+          version: "5.2"
+
+      - name: Verify Blender
+        run: blender --version
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version | head -1
+
+      - name: Create output directories
+        run: mkdir -p "${{ env.FRAMES_DIR }}" "${{ env.OUT_DIR }}"
+
+      - name: Report scene inventory
+        run: blender -b "${{ env.BLEND }}" -P blender-stock/inspect_scene.py
+
+      - name: Render animation
+        env:
+          ENGINE: ${{ inputs.engine }}
+          SAMPLES: ${{ inputs.samples }}
+          START_FRAME: ${{ inputs.start_frame }}
+          END_FRAME: ${{ inputs.end_frame }}
+          FRAMES_DIR: ${{ env.FRAMES_DIR }}
+          RES_X: "3840"
+          RES_Y: "2160"
+          FPS: "60"
+          CYCLES_THREADS: "2"
+        run: |
+          echo "Rendering frames ${{ inputs.start_frame }}-${{ inputs.end_frame }} at 3840x2160, 60 fps"
+          blender -b "${{ env.BLEND }}" \
+            -P blender-stock/ci_settings.py \
+            -a
+
+      - name: Count rendered frames
+        run: |
+          COUNT=$(ls -1 "${{ env.FRAMES_DIR }}/pcb_"*.png 2>/dev/null | wc -l)
+          echo "rendered $COUNT frames"
+          du -sh "${{ env.FRAMES_DIR }}"
+          df -h /
+          echo "COUNT=$COUNT" >> $GITHUB_ENV
+
+      - name: Upload frame sequence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pcb-frames-${{ inputs.start_frame }}-${{ inputs.end_frame }}
+          path: ${{ env.FRAMES_DIR }}/pcb_*.png
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: warn
+
+      - name: Upload scene backup
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pcb-scene-backup
+          path: ${{ env.BLEND }}
+          retention-days: 14
+
+      - name: Loop QC
+        if: always()
+        continue-on-error: true
+        env:
+          FRAMES: ${{ env.COUNT }}
+          EXPECTED_FRAMES: "720"
+          SEAM_STRICT: "1"
+        run: |
+          if [ "${FRAMES:-0}" -lt 2 ]; then
+            echo "[qc] skipped, not enough frames"
+            exit 0
+          fi
+          # A partial render has no wrap point, so only enforce the seam
+          # verdict when the whole 720-frame period was rendered.
+          if [ "${{ inputs.start_frame }}" != "1" ] || [ "${{ inputs.end_frame }}" != "720" ]; then
+            echo "[qc] partial range, seam reported but not enforced"
+            SEAM_STRICT=0
+          fi
+          SEAM_STRICT="$SEAM_STRICT" python blender-stock/qc_loop.py "${{ env.FRAMES_DIR }}"
+          cat "${{ env.FRAMES_DIR }}/loop_qc.json" || true
+
+      - name: Encode delivery files
+        if: ${{ inputs.encode }}
+        env:
+          FPS: "60"
+          EXPECTED_FRAMES: "720"
+        run: |
+          python blender-stock/encode.py "${{ env.FRAMES_DIR }}" "${{ env.OUT_DIR }}"
+
+      - name: Verify output spec
+        if: ${{ inputs.encode }}
+        run: |
+          ls -la "${{ env.OUT_DIR }}"
+          MP4=$(ls -1 "${{ env.OUT_DIR }}"/*.mp4 | head -1)
+          ffprobe -v error -select_streams v:0 \
+            -show_entries stream=width,height,r_frame_rate,nb_frames,pix_fmt \
+            -show_entries format=duration,size \
+            -of default=noprint_wrappers=1 \
+            "$MP4"
+          echo "--- contact sheet ---"
+          ls -la "${{ env.OUT_DIR }}/pcb_contact_sheet.png"
+
+      - name: Upload delivery video
+        if: ${{ inputs.encode }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pcb-luxury-loop-4k60-12s
+          path: |
+            ${{ env.OUT_DIR }}/*.mp4
+            ${{ env.OUT_DIR }}/*.mov
+            ${{ env.OUT_DIR }}/pcb_contact_sheet.png
+            ${{ env.OUT_DIR }}/render_report.json
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### PCB luxury loop render"
+            echo ""
+            echo "- Engine: ${{ inputs.engine }}"
+            echo "- Samples: ${{ inputs.samples }}"
+            echo "- Frames: ${{ inputs.start_frame }}-${{ inputs.end_frame }} @ 60 fps"
+            echo "- Resolution: 3840x2160"
+            echo "- Frames found: ${COUNT:-0}"
+            echo ""
+            ls -lh "${{ env.OUT_DIR }}" 2>/dev/null || true
+          } >> $GITHUB_STEP_SUMMARY

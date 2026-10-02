@@ -1,0 +1,53 @@
+# Windows system files
+NTUSER.DAT*
+ntuser.*
+AppData/
+Cookies/
+Local Settings/
+My Documents/
+NetHood/
+PrintHood/
+Recent/
+SendTo/
+Start Menu/
+Templates/
+Temp/
+Saved Games/
+Contacts/
+Favorites/
+Links/
+OneDrive/
+Music/
+Videos/
+Downloads/
+Desktop/
+
+# Log files
+*.log
+*.tmp
+
+# Temp/debug artifacts
+temp_*
+
+# Large binaries
+*.blend1
+*.blend
+*.zip
+*.onnx
+
+# Stock render sources must be tracked for GitHub Actions
+!blender-stock/
+!blender-stock/**/*.blend
+
+# Standalone project repositories (own .git, own AGENTS.md)
+Hyperframes/
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Blender stock render output
+blender-stock/render/
+blender-stock/output/
+*.blend1
