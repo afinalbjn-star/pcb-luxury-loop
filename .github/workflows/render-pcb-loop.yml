@@ -98,9 +98,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libegl1 libgles2 libgl1 libglx0 libglu1-mesa 2>&1 | tail -1
-          ldconfig
-          echo "libEGL: $(ldconfig -p | grep libEGL | head -1)"
+            libegl1 libgles2 libgl1 libglx0 libglu1-mesa
+          echo "[egl] libEGL: $(ldconfig -p 2>/dev/null | grep libEGL | head -1 || echo NOT-FOUND)"
 
       - name: Report scene inventory
         run: blender -b "${{ env.BLEND }}" -P blender-stock/inspect_scene.py
