@@ -101,6 +101,11 @@ jobs:
             libegl1 libgles2 libgl1 libglx0 libglu1-mesa
           echo "[egl] libEGL: $(ldconfig -p 2>/dev/null | grep libEGL | head -1 || echo NOT-FOUND)"
 
+      - name: Install Xvfb (headless OpenGL context for EEVEE)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth 2>&1 | tail -1
+
       - name: Report scene inventory
         run: blender -b "${{ env.BLEND }}" -P blender-stock/inspect_scene.py
 
@@ -117,7 +122,8 @@ jobs:
           CYCLES_THREADS: "2"
         run: |
           echo "Rendering frames ${{ inputs.start_frame }}-${{ inputs.end_frame }} at 3840x2160, 60 fps"
-          blender -b "${{ env.BLEND }}" \
+          xvfb-run -a --server-args="-screen 0 3840x2160x24" \
+            blender -b "${{ env.BLEND }}" \
             -P blender-stock/ci_settings.py \
             -a
 
