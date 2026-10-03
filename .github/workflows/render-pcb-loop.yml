@@ -104,7 +104,9 @@ jobs:
       - name: Install Xvfb (headless OpenGL context for EEVEE)
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends xvfb xauth 2>&1 | tail -1
+          sudo apt-get install -y --no-install-recommends xvfb xauth
+          echo "[xvfb] $(xvfb-run --version 2>/dev/null || echo XVFBNOT-FOUND)"
+          echo "[xvfb] $(which Xvfb 2>/dev/null || echo XVFBNOT-FOUND)"
 
       - name: Report scene inventory
         run: blender -b "${{ env.BLEND }}" -P blender-stock/inspect_scene.py
