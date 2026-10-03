@@ -94,6 +94,14 @@ jobs:
       - name: Create output directories
         run: mkdir -p "${{ env.FRAMES_DIR }}" "${{ env.OUT_DIR }}"
 
+      - name: Install OpenGL/EGL libraries for EEVEE
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 libgles2 libgl1 libglx0 libglu1-mesa 2>&1 | tail -1
+          ldconfig
+          echo "libEGL: $(ldconfig -p | grep libEGL | head -1)"
+
       - name: Report scene inventory
         run: blender -b "${{ env.BLEND }}" -P blender-stock/inspect_scene.py
 
