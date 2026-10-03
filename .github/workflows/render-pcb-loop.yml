@@ -121,7 +121,7 @@ jobs:
           RES_X: "3840"
           RES_Y: "2160"
           FPS: "60"
-          CYCLES_THREADS: "8"
+          CYCLES_THREADS: "16"
         run: |
           echo "Rendering frames ${{ inputs.start_frame }}-${{ inputs.end_frame }} at 3840x2160, 60 fps"
           xvfb-run -a --server-args="-screen 0 3840x2160x24" \
