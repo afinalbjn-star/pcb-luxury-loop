@@ -94,20 +94,6 @@ jobs:
       - name: Create output directories
         run: mkdir -p "${{ env.FRAMES_DIR }}" "${{ env.OUT_DIR }}"
 
-      - name: Install OpenGL/EGL libraries for EEVEE
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libegl1 libgles2 libgl1 libglx0 libglu1-mesa
-          echo "[egl] libEGL: $(ldconfig -p 2>/dev/null | grep libEGL | head -1 || echo NOT-FOUND)"
-
-      - name: Install Xvfb (headless OpenGL context for EEVEE)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends xvfb xauth
-          echo "[xvfb] $(xvfb-run --version 2>/dev/null || echo XVFBNOT-FOUND)"
-          echo "[xvfb] $(which Xvfb 2>/dev/null || echo XVFBNOT-FOUND)"
-
       - name: Report scene inventory
         run: blender -b "${{ env.BLEND }}" -P blender-stock/inspect_scene.py
 
@@ -121,11 +107,10 @@ jobs:
           RES_X: "3840"
           RES_Y: "2160"
           FPS: "60"
-          CYCLES_THREADS: "16"
+          CYCLES_THREADS: "32"
         run: |
           echo "Rendering frames ${{ inputs.start_frame }}-${{ inputs.end_frame }} at 3840x2160, 60 fps"
-          xvfb-run -a --server-args="-screen 0 3840x2160x24" \
-            blender -b "${{ env.BLEND }}" \
+          blender -b "${{ env.BLEND }}" \
             -P blender-stock/ci_settings.py \
             -a
 
