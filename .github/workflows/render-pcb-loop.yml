@@ -12,11 +12,13 @@ on:
           - "cycles"
           - "eevee"
       samples:
-        description: "Samples per frame (cycles)"
+        description: "Samples per frame (cycles) / EEVEE TAA"
         required: false
-        default: "256"
+        default: "64"
         type: choice
         options:
+          - "16"
+          - "32"
           - "64"
           - "128"
           - "256"
