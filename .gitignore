@@ -51,3 +51,10 @@ __pycache__/
 blender-stock/render/
 blender-stock/output/
 *.blend1
+# Local 4K render batch outputs and previews
+blender-stock/render4k30/
+blender-stock/local-preview/
+blender-stock/bench/
+watchdog.log
+watch_render.log
+preview.log
