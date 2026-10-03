@@ -63,7 +63,7 @@ jobs:
   render:
     name: Render 4K60 loop
     runs-on: ubuntu-latest
-    timeout-minutes: 480
+    timeout-minutes: 360
 
     steps:
       - name: Checkout

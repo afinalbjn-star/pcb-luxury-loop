@@ -71,7 +71,7 @@ if render.engine == "CYCLES":
         cy.threads = THREADS
 else:
     ee = scene.eevee
-    ee.taa_render_samples = max(SAMPLES, 64)
+    ee.taa_render_samples = max(SAMPLES, 16)
     if hasattr(ee, "use_raytracing"):
         ee.use_raytracing = True
     if hasattr(ee, "use_bloom"):
